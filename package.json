@@ -1,0 +1,11 @@
+{
+  "name": "idea-vault",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "pnpm --filter api dev",
+    "dev": "pnpm --parallel --filter web --filter api dev"
+  },
+  "packageManager": "pnpm@10.30.1"
+}
