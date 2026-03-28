@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+
+}
+
+enum Domain {
+  DEV
+  BUSINESS
+  CREATIVE
+  HEALTH
+  TRAVEL
+  LEARNING
+  LIFE
+}
+
+enum IdeaStatus {
+  PENDING
+  ENRICHED
+  ACTIVE
+  PARKED
+  ARCHIVED
+}
+
+enum GoalStatus {
+  QUEUED
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ideas         Idea[]
+  learningGoals LearningGoal[]
+  weeklyCheckins WeeklyCheckin[]
+
+  @@index([clerkId])
+}
+
+model Idea {
+  id        String     @id @default(cuid())
+  userId    String
+  title     String
+  rawDump   String     @db.Text
+  domain    Domain
+  status    IdeaStatus @default(PENDING)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enrichment Enrichment?
+
+  @@index([userId])
+  @@index([userId, domain])
+  @@index([userId, status])
+  @@index([createdAt])
+}
+
+model Enrichment {
+  id             String   @id @default(cuid())
+  ideaId         String   @unique
+  category       String
+  summary        String   @db.Text
+  viabilityNote  String   @db.Text
+  phases         Json
+  estimatedHours Int?
+  nextSteps      Json
+  domainMeta     Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+}
+
+model LearningGoal {
+  id             String     @id @default(cuid())
+  userId         String
+  title          String
+  why            String?    @db.Text
+  estimatedHours Int?
+  status         GoalStatus @default(QUEUED)
+  nextReviewAt   DateTime?
+  interval       Int        @default(1)
+  easeFactor     Float      @default(2.5)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([nextReviewAt])
+}
+
+model WeeklyCheckin {
+  id             String   @id @default(cuid())
+  userId         String
+  availableHours Int
+  energyLevel    Int
+  domainLeaning  Domain?
+  focusRec       String?  @db.Text
+  weekStart      DateTime
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([weekStart])
+}

@@ -7,5 +7,8 @@
     "dev:api": "pnpm --filter api dev",
     "dev": "pnpm --parallel --filter web --filter api dev"
   },
-  "packageManager": "pnpm@10.30.1"
+  "packageManager": "pnpm@10.30.1",
+  "devDependencies": {
+    "@types/node": "^25.5.0"
+  }
 }
