@@ -1,6 +1,8 @@
 import { FastifyInstance } from 'fastify'
 import { prisma } from '../lib/prisma'
 import { authenticate } from '../plugins/auth'
+import { Enrichment } from '@idea-vault/types';
+import { types } from 'util'
 
 export async function ideasRoutes(fastify: FastifyInstance) {
 
@@ -32,7 +34,45 @@ export async function ideasRoutes(fastify: FastifyInstance) {
     const idea = await prisma.idea.create({
       data: { userId: request.userId, title, rawDump, domain: domain as any }
     })
-    return reply.status(201).send(idea)
+
+    // call AI worker to enrich the idea
+    try {
+      const aiResponse = await fetch(`${process.env.AI_WORKER_URL}/enrich`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ideaId: idea.id, title, rawDump, domain }),
+        signal: AbortSignal.timeout(60000), // 60 seconds timeout
+      })
+      if (aiResponse.ok) {
+        const enrichment = await aiResponse.json() as Enrichment
+
+        await prisma.enrichment.create({
+          data: {
+            ideaId: idea.id,
+            category: enrichment.category,
+            summary: enrichment.summary,
+            viabilityNote: enrichment.viabilityNote,
+            phases: enrichment.phases,
+            estimatedHours: enrichment.estimatedHours,
+            nextSteps: enrichment.nextSteps,
+            domainMeta: enrichment.domainMeta,
+          }
+        })
+
+        await prisma.idea.update({
+          where: { id: idea.id },
+          data: { status: 'ENRICHED' }
+        })
+      }
+    } catch (error) {
+      console.error('Error enriching idea:', error)
+      // We don't fail the request if enrichment fails, we just log the error
+    }
+    const ideaWithEnrichment = await prisma.idea.findUnique({
+      where: { id: idea.id },
+      include: { enrichment: true }
+    })
+    return reply.status(201).send(ideaWithEnrichment)
   })
 
   fastify.get('/ideas/:id', { preHandler: authenticate }, async (request, reply) => {
