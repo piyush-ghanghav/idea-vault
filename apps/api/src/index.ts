@@ -10,7 +10,7 @@ const server = Fastify({ logger: true })
 server.addContentTypeParser('application/json', { parseAs: 'string' }, function (req, body, done) {
   try {
     const json = JSON.parse(body as string)
-    ;(req as any).rawBody = body
+      ; (req as any).rawBody = body
     done(null, json)
   } catch (err: any) {
     done(err, undefined)
@@ -19,7 +19,11 @@ server.addContentTypeParser('application/json', { parseAs: 'string' }, function 
 
 server.decorateRequest('userId', '')
 
-server.register(cors, { origin: 'http://localhost:3000' })
+server.register(cors, {
+  origin: 'http://localhost:3000',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+})
 server.register(helmet)
 server.register(webhookRoutes, { prefix: '/api' })
 server.register(ideasRoutes, { prefix: '/api' })
