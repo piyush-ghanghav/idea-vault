@@ -4,10 +4,12 @@ import { Worker, Job } from "bullmq"
 import { redis } from './index'
 import { prisma } from '../lib/prisma'
 import { Enrichment } from '@idea-vault/types'
+import { cache } from '../lib/cache'
 
 
 interface EnrichmentJobData {
     ideaId: string
+    userId: string
     title: string
     rawDump: string
     domain: string
@@ -16,7 +18,7 @@ interface EnrichmentJobData {
 const worker = new Worker<EnrichmentJobData>(
     'idea-enrichment',
     async (job: Job<EnrichmentJobData>) => {
-        const { ideaId, title, rawDump, domain } = job.data
+        const { ideaId, userId, title, rawDump, domain } = job.data
 
         console.log(`[Worker] Processing job ${job.id} for idea ${ideaId}`)
 
@@ -73,30 +75,33 @@ const worker = new Worker<EnrichmentJobData>(
             data: { status: 'ENRICHED' }
         })
 
+        await cache.invalidateIdeas(userId)
+        console.log(`[Worker] Cache invalidated for user ${userId}`)
+
         console.log(`[Worker] Enrichment complete for idea ${ideaId}`)
         return { success: true, ideaId }
     },
     {
-        connection:redis,
-        concurrency:3
+        connection: redis,
+        concurrency: 3
     }
 )
 
 // Event Handlers
 
-worker.on('completed', (job)=>{
+worker.on('completed', (job) => {
     console.log(`[Worker] Job ${job.id} completed`)
 })
 
-worker.on('failed', (job, err)=>{
-    console.log(`[Worker] Job ${job?.id} failed:`,err.message)
-    if(job && job.attemptsMade >= (job.opts.attempts?? 3)){
+worker.on('failed', (job, err) => {
+    console.log(`[Worker] Job ${job?.id} failed:`, err.message)
+    if (job && job.attemptsMade >= (job.opts.attempts ?? 3)) {
         console.log(`[Worker] Job ${job.id} exhausted all retries — moving to DLQ`)
     }
 })
 
-worker.on('error', (err)=>{
-    console.log(`[Worker] Worker error:`,err)
+worker.on('error', (err) => {
+    console.log(`[Worker] Worker error:`, err)
 })
 
 console.log(`[Worker] Enrichment worker started, waiting for jobs...`)

@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify'
 import { prisma } from '../lib/prisma'
 import { authenticate } from '../plugins/auth'
 import { enrichmentQueue } from '../queue'
+import { cache } from '../lib/cache'
 
 export async function ideasRoutes(fastify: FastifyInstance) {
 
@@ -10,6 +11,16 @@ export async function ideasRoutes(fastify: FastifyInstance) {
       cursor?: string; limit?: string; domain?: string
     }
     const take = Math.min(parseInt(limit), 50)
+
+    const isDefaultQuery = !cursor && !domain && take == 10
+
+    if (isDefaultQuery) {
+      const cached = await cache.getIdeas(request.userId)
+      if (cached) {
+        return reply.send(cached)
+      }
+    }
+
     const ideas = await prisma.idea.findMany({
       where: { userId: request.userId, ...(domain && { domain: domain as any }) },
       include: { enrichment: true },
@@ -20,7 +31,11 @@ export async function ideasRoutes(fastify: FastifyInstance) {
     const hasNextPage = ideas.length > take
     const data = hasNextPage ? ideas.slice(0, -1) : ideas
     const nextCursor = hasNextPage ? data[data.length - 1].id : null
-    return reply.send({ data, nextCursor, hasNextPage })
+    const result = { data, nextCursor, hasNextPage }
+    if (isDefaultQuery) {
+      await cache.setIdeas(request.userId, result)
+    }
+    return reply.send(result)
   })
 
   fastify.post('/ideas', { preHandler: authenticate }, async (request, reply) => {
@@ -36,6 +51,7 @@ export async function ideasRoutes(fastify: FastifyInstance) {
 
     await enrichmentQueue.add('enrich', {
       ideaId: idea.id,
+      userId: idea.userId,
       title,
       rawDump,
       domain,
@@ -64,6 +80,7 @@ export async function ideasRoutes(fastify: FastifyInstance) {
       where: { id },
       data: { ...(title && { title }), ...(status && { status: status as any }) }
     })
+    await cache.invalidateIdeas(request.userId)
     return reply.send(idea)
   })
 
@@ -72,6 +89,7 @@ export async function ideasRoutes(fastify: FastifyInstance) {
     const existing = await prisma.idea.findFirst({ where: { id, userId: request.userId } })
     if (!existing) return reply.status(404).send({ error: 'Idea not found' })
     await prisma.idea.delete({ where: { id } })
+    await cache.invalidateIdeas(request.userId)
     return reply.status(204).send()
   })
 }
