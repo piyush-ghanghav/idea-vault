@@ -4,8 +4,17 @@ import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import { ideasRoutes } from './routes/ideas'
 import { webhookRoutes } from './routes/webhooks'
+const isDev = process.env.NODE_ENV !== 'production'
 
-const server = Fastify({ logger: true })
+const server = Fastify({
+  logger: isDev
+    ? {
+      transport: {
+        target: 'pino-pretty'
+      }
+    }
+    : true
+})
 
 server.addContentTypeParser('application/json', { parseAs: 'string' }, function (req, body, done) {
   try {
