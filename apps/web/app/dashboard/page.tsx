@@ -5,9 +5,10 @@ import { useApi } from '@/hooks/useApi'
 import { IdeaCard } from '@/components/IdeaCard'
 import { CreateIdeaForm } from '@/components/CreateIdeaForm'
 import { Idea, Domain, DOMAINS } from '@idea-vault/types'
+import { useSocket } from '@/hooks/useSocket'
 
 export default function DashboardPage() {
-  const { isLoaded, isSignedIn, ...api } = useApi()
+  const api = useApi()
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [loading, setLoading] = useState(true)
   const [domainFilter, setDomainFilter] = useState<Domain | 'ALL'>('ALL')
@@ -26,10 +27,50 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return  // wait for Clerk
+    if (!api.isLoaded || !api.isSignedIn) return
     fetchIdeas()
-  }, [domainFilter, isLoaded, isSignedIn])
-  
+  }, [domainFilter, api.isLoaded, api.isSignedIn])
+
+  // Live enrichment updates via Socket.io
+  const handleEnrichmentComplete = (data: { ideaId: string; enrichment: any }) => {
+    console.log('[Dashboard] Live enrichment update for:', data.ideaId)
+    setIdeas(prev => prev.map(idea =>
+      idea.id === data.ideaId
+        ? { ...idea, status: 'ENRICHED' as any, enrichment: data.enrichment }
+        : idea
+    ))
+  }
+
+  useSocket(handleEnrichmentComplete)
+
+  // Called after idea is created
+  const handleCreated = (newIdea?: any) => {
+    if (newIdea) {
+      setIdeas(prev => [{ ...newIdea, enrichment: null }, ...prev])
+    }
+    setTimeout(() => fetchIdeas(), 300)
+  }
+
+  // Fallback polling if socket misses event
+  const handleIdeaCreated = (ideaId: string) => {
+    [5000, 15000].forEach(delay => {
+      setTimeout(async () => {
+        try {
+          const idea = await api.getIdea(ideaId)
+          if (idea.enrichment) {
+            setIdeas(prev => prev.map(i =>
+              i.id === ideaId
+                ? { ...i, status: 'ENRICHED' as any, enrichment: idea.enrichment }
+                : i
+            ))
+          }
+        } catch (err) {
+
+        }
+      }, delay)
+    })
+  }
+
   const handleDelete = async (id: string) => {
     await api.deleteIdea(id)
     setIdeas(prev => prev.filter(i => i.id !== id))
@@ -42,27 +83,24 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
           <div>
             <h1 className="text-xl font-bold text-gray-900">IdeaVault</h1>
             <p className="text-xs text-gray-400 mt-0.5">Your personal clarity OS</p>
           </div>
-          <UserButton/>
+          <UserButton />
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
-        {/* Domain Filter */}
         <div className="flex gap-2 mb-6 flex-wrap">
           <button
             onClick={() => setDomainFilter('ALL')}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-              domainFilter === 'ALL'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white border border-gray-200 text-gray-600 hover:border-blue-300'
-            }`}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${domainFilter === 'ALL'
+              ? 'bg-blue-600 text-white'
+              : 'bg-white border border-gray-200 text-gray-600 hover:border-blue-300'
+              }`}
           >
             All
           </button>
@@ -70,23 +108,23 @@ export default function DashboardPage() {
             <button
               key={d}
               onClick={() => setDomainFilter(d)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                domainFilter === d
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:border-blue-300'
-              }`}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${domainFilter === d
+                ? 'bg-blue-600 text-white'
+                : 'bg-white border border-gray-200 text-gray-600 hover:border-blue-300'
+                }`}
             >
               {d}
             </button>
           ))}
         </div>
 
-        {/* Create Form */}
         <div className="mb-6">
-          <CreateIdeaForm onCreated={fetchIdeas} />
+          <CreateIdeaForm
+            onCreated={handleCreated}
+            onIdeaCreated={handleIdeaCreated}
+          />
         </div>
 
-        {/* Ideas Grid */}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(3)].map((_, i) => (

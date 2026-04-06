@@ -4,6 +4,10 @@ import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import { ideasRoutes } from './routes/ideas'
 import { webhookRoutes } from './routes/webhooks'
+import { createServer } from 'http'
+import { Server } from 'socket.io'
+import { subscriber } from './lib/cache'
+
 const isDev = process.env.NODE_ENV !== 'production'
 
 const server = Fastify({
@@ -14,6 +18,11 @@ const server = Fastify({
       }
     }
     : true
+})
+
+const httpServer = createServer(server.server)
+export const io = new Server(httpServer, {
+  cors: { origin: 'http://localhost:3000', methods: ['GET', 'POST'] }
 })
 
 server.addContentTypeParser('application/json', { parseAs: 'string' }, function (req, body, done) {
@@ -37,6 +46,40 @@ server.register(helmet)
 server.register(webhookRoutes, { prefix: '/api' })
 server.register(ideasRoutes, { prefix: '/api' })
 
+io.on('connection', (socket) => {
+  console.log(`[Socket.IO] Client connected: ${socket.id}`)
+
+  socket.on('join', (userId: string) => {
+    socket.join(`user:${userId}`)
+    console.log(`[Socket.IO] User ${userId} joined their room`)
+  })
+
+  socket.on('disconnect', () => {
+    console.log(`[Socket.IO] Client disconnected: ${socket.id}`)
+  })
+
+})
+
+subscriber.subscribe('enrichment:complete', (err) => {
+  if (err)
+    console.error('[PubSub] Subscribe error: ', err)
+  else
+    console.log(`[PubSub] Subscribed to enrichment:complete`)
+})
+
+subscriber.on('message', (channel, message) => {
+  if (channel === 'enrichment:complete') {
+    const { clerkId, ideaId, enrichment } = JSON.parse(message)
+    console.log(`[PubSub] Received enrichment:complete for idea ${ideaId}`)
+
+    io.to(`user:${clerkId}`).emit('enrichment:complete', {
+      ideaId,
+      enrichment
+    })
+    console.log(`[PubSub] Emitted enrichment:complete to user ${clerkId} for idea ${ideaId}`)
+  }
+})
+
 server.get('/health', async () => {
   return { status: 'ok', timestamp: new Date().toISOString() }
 })
@@ -44,6 +87,10 @@ server.get('/health', async () => {
 const start = async () => {
   try {
     await server.listen({ port: 3001, host: '0.0.0.0' })
+
+    httpServer.listen(3002, () => {
+      console.log('[Socket] Socket.io server listening on port 3002')
+    })
   } catch (err) {
     server.log.error(err)
     process.exit(1)

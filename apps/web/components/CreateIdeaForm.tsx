@@ -4,10 +4,11 @@ import { DOMAINS, Domain } from '@idea-vault/types'
 import { useApi } from '@/hooks/useApi'
 
 interface Props {
-  onCreated: () => void
+  onCreated: (newIdea?: any) => void
+  onIdeaCreated?: (ideaId: string) => void
 }
 
-export function CreateIdeaForm({ onCreated }: Props) {
+export function CreateIdeaForm({ onCreated, onIdeaCreated }: Props) {
   const api = useApi()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -17,10 +18,11 @@ export function CreateIdeaForm({ onCreated }: Props) {
     if (!form.title.trim() || !form.rawDump.trim()) return
     setLoading(true)
     try {
-      await api.createIdea(form)
+      const idea = await api.createIdea(form)
       setForm({ title: '', rawDump: '', domain: 'DEV' })
       setOpen(false)
-      onCreated()
+      onCreated(idea)
+      onIdeaCreated?.(idea.id)
     } catch (err) {
       console.error(err)
     } finally {

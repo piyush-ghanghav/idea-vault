@@ -48,14 +48,20 @@ export async function ideasRoutes(fastify: FastifyInstance) {
     const idea = await prisma.idea.create({
       data: { userId: request.userId, title, rawDump, domain: domain as any }
     })
+    const user = await prisma.user.findUnique({
+      where: { id: request.userId },
+      select: { clerkId: true }
+    })
 
     await enrichmentQueue.add('enrich', {
       ideaId: idea.id,
       userId: idea.userId,
+      clerkId: user!.clerkId,
       title,
       rawDump,
       domain,
     })
+    await cache.invalidateIdeas(request.userId)
 
     console.log(`[API] Queued enrichment job for idea ${idea.id}`)
     return reply.status(201).send({ ...idea, enrichment: null })

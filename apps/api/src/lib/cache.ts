@@ -1,4 +1,11 @@
 import { redis } from '../queue'
+import IORedis from 'ioredis'
+
+//separate connection for pub/sub
+export const subscriber = new IORedis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
+    maxRetriesPerRequest: null
+}
+)
 
 const TTL = {
     IDEAS_LIST: 60 * 5
@@ -30,4 +37,11 @@ export const cache = {
         await redis.del(key)
         console.log(`[Cache] INVALIDATED — ${key}`)
     },
+
+    // Publish enrichment complete event
+    async publishEnrichmentComplete(clerkId: string, ideaId: string, enrichment: any) {
+        const payload = JSON.stringify({ clerkId, ideaId, enrichment })
+        await redis.publish('enrichment:complete', payload)
+        console.log(`[PubSub] Published enrichment:complete for idea ${ideaId}`)
+    }
 }

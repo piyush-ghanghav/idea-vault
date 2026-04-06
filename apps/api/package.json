@@ -26,6 +26,7 @@
     "ioredis": "^5.10.1",
     "pg": "^8.18.0",
     "prisma": "^7.4.1",
+    "socket.io": "^4.8.3",
     "svix": "^1.89.0"
   },
   "devDependencies": {

@@ -10,6 +10,7 @@ import { cache } from '../lib/cache'
 interface EnrichmentJobData {
     ideaId: string
     userId: string
+    clerkId: string
     title: string
     rawDump: string
     domain: string
@@ -18,7 +19,7 @@ interface EnrichmentJobData {
 const worker = new Worker<EnrichmentJobData>(
     'idea-enrichment',
     async (job: Job<EnrichmentJobData>) => {
-        const { ideaId, userId, title, rawDump, domain } = job.data
+        const { ideaId, userId, clerkId, title, rawDump, domain } = job.data
 
         console.log(`[Worker] Processing job ${job.id} for idea ${ideaId}`)
 
@@ -69,6 +70,7 @@ const worker = new Worker<EnrichmentJobData>(
                 domainMeta: enrichment.domainMeta ?? {},
             }
         })
+        const savedEnrichment = await prisma.enrichment.findUnique({where:{ideaId}})
 
         await prisma.idea.update({
             where: { id: ideaId },
@@ -77,6 +79,8 @@ const worker = new Worker<EnrichmentJobData>(
 
         await cache.invalidateIdeas(userId)
         console.log(`[Worker] Cache invalidated for user ${userId}`)
+        
+        await cache.publishEnrichmentComplete(clerkId,ideaId,savedEnrichment)
 
         console.log(`[Worker] Enrichment complete for idea ${ideaId}`)
         return { success: true, ideaId }
