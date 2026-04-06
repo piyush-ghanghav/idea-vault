@@ -7,6 +7,7 @@ import { webhookRoutes } from './routes/webhooks'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import { subscriber } from './lib/cache'
+import { focusRoutes } from './routes/focus'
 
 const isDev = process.env.NODE_ENV !== 'production'
 
@@ -42,9 +43,11 @@ server.register(cors, {
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 })
+
 server.register(helmet)
 server.register(webhookRoutes, { prefix: '/api' })
 server.register(ideasRoutes, { prefix: '/api' })
+server.register(focusRoutes, { prefix: '/api' })
 
 io.on('connection', (socket) => {
   console.log(`[Socket.IO] Client connected: ${socket.id}`)

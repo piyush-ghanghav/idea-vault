@@ -6,6 +6,7 @@ import { IdeaCard } from '@/components/IdeaCard'
 import { CreateIdeaForm } from '@/components/CreateIdeaForm'
 import { Idea, Domain, DOMAINS } from '@idea-vault/types'
 import { useSocket } from '@/hooks/useSocket'
+import Link from 'next/dist/client/link'
 
 export default function DashboardPage() {
   const api = useApi()
@@ -89,6 +90,13 @@ export default function DashboardPage() {
             <h1 className="text-xl font-bold text-gray-900">IdeaVault</h1>
             <p className="text-xs text-gray-400 mt-0.5">Your personal clarity OS</p>
           </div>
+          
+            <Link
+              href="/focus"
+              className="text-xs text-blue-600 hover:text-blue-700 font-medium border border-blue-200 px-3 py-1 rounded-full"
+            >
+              Weekly Focus →
+            </Link>
           <UserButton />
         </div>
       </div>

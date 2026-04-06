@@ -64,5 +64,19 @@ export function useApi() {
                     },
                 }).then(res => res.data)
             ),
+
+        getCheckin: () =>
+            authRequest(token =>
+                apiClient.get('/api/focus/checkin', {
+                    headers: { Authorization: `Bearer ${token}` },
+                }).then(res => res.data)
+            ),
+
+        submitCheckin: (data: { availableHours: number; energyLevel: number; domainLeaning?: string }) =>
+            authRequest(token =>
+                apiClient.post('/api/focus/checkin', data, {
+                    headers: { Authorization: `Bearer ${token}` },
+                }).then(res => res.data)
+            ),
     }
 }
