@@ -4,6 +4,7 @@ import { Worker, Job } from "bullmq"
 import { redis } from './index'
 import { prisma } from '../lib/prisma'
 import { Enrichment } from '@idea-vault/types'
+import { EnrichmentSchema } from '../schemas/enrichment'
 import { cache } from '../lib/cache'
 
 
@@ -46,7 +47,8 @@ const worker = new Worker<EnrichmentJobData>(
             throw new Error(`AI service failed ${error}`)
         }
 
-        const enrichment = await aiResponse.json() as Enrichment
+        const rawEnrichment = await aiResponse.json() as Enrichment
+        const enrichment = EnrichmentSchema.parse(rawEnrichment)
 
         await prisma.enrichment.upsert({
             where: { ideaId },
@@ -58,7 +60,7 @@ const worker = new Worker<EnrichmentJobData>(
                 phases: enrichment.phases,
                 estimatedHours: enrichment.estimatedHours,
                 nextSteps: enrichment.nextSteps,
-                domainMeta: enrichment.domainMeta ?? {},
+                domainMeta: (enrichment.domainMeta ?? {}) as any,
             },
             update: {
                 category: enrichment.category,
@@ -67,7 +69,7 @@ const worker = new Worker<EnrichmentJobData>(
                 phases: enrichment.phases,
                 estimatedHours: enrichment.estimatedHours,
                 nextSteps: enrichment.nextSteps,
-                domainMeta: enrichment.domainMeta ?? {},
+                domainMeta: (enrichment.domainMeta ?? {}) as any,
             }
         })
         const savedEnrichment = await prisma.enrichment.findUnique({where:{ideaId}})

@@ -1,6 +1,7 @@
 import fastify, { FastifyInstance } from "fastify"
 import { authenticate } from "../plugins/auth"
 import { prisma } from "../lib/prisma"
+import { FocusRecSchema } from "../schemas/enrichment"
 
 export function focusRoutes(fastify: FastifyInstance) {
 
@@ -19,7 +20,7 @@ export function focusRoutes(fastify: FastifyInstance) {
     fastify.post('/focus/checkin', { preHandler: authenticate }, async (request, reply) => {
         const { availableHours, energyLevel, domainLeaning } = request.body as { availableHours: number, energyLevel: number, domainLeaning?: string }
 
-        if (!availableHours || !energyLevel) {
+        if (availableHours == null || energyLevel == null) {
             return reply.status(400).send({ error: 'availableHours and energyLevel are required' })
         }
 
@@ -75,7 +76,19 @@ export function focusRoutes(fastify: FastifyInstance) {
         if (!aiResponse.ok) {
             return reply.status(500).send({ error: 'Focus generation failed' })
         }
-        const focusRec = await aiResponse.json()
+        const raw = await aiResponse.json()
+
+        let focusRec: any
+        try {
+            focusRec = FocusRecSchema.parse(raw)
+        } catch (err) {
+            console.error('Focus rec validation failed:', err)
+            focusRec = {
+                focus: 'Review your active ideas',
+                rationale: 'Take time this week to reflect on your priorities and pick one to move forward.',
+                firstAction: 'Open IdeaVault and mark one idea as Active.'
+            }
+        }
 
         const checkin = await prisma.weeklyCheckin.create({
             data: {
