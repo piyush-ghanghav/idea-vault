@@ -72,6 +72,18 @@ const worker = new Worker<EnrichmentJobData>(
                 domainMeta: (enrichment.domainMeta ?? {}) as any,
             }
         })
+
+        if (enrichment.embedding && enrichment.embedding.length === 384) {
+            const vectorLiteral = `[${enrichment.embedding.join(',')}]`
+            await prisma.$executeRaw`
+                UPDATE "Idea"
+                SET embedding = ${vectorLiteral}::vector
+                WHERE id = ${ideaId}
+            `
+            console.log(`[Worker] Embedding saved for idea ${ideaId}`)
+        }
+
+
         const savedEnrichment = await prisma.enrichment.findUnique({where:{ideaId}})
 
         await prisma.idea.update({

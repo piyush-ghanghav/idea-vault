@@ -12,6 +12,7 @@ export const EnrichmentSchema = z.object({
   estimatedHours: z.number().positive(),
   nextSteps: z.array(z.string()).min(1),
   domainMeta: z.record(z.string(), z.unknown()).optional().default({}),
+  embedding: z.array(z.number()).length(384).optional(), 
 })
 
 export const FocusRecSchema = z.object({
@@ -22,4 +23,3 @@ export const FocusRecSchema = z.object({
 
 export type EnrichmentOutput = z.infer<typeof EnrichmentSchema>
 export type FocusRecOutput = z.infer<typeof FocusRecSchema>
-``

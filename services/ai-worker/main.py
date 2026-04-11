@@ -3,6 +3,7 @@ from datetime import datetime
 
 from routes.enrich import router as enrich_router
 from routes.focus import router as focus_router
+from routes.embed import router as embed_router
 
 app = FastAPI(title="IdeaVault AI Worker")
 
@@ -12,3 +13,4 @@ def health():
 
 app.include_router(enrich_router)
 app.include_router(focus_router)    
+app.include_router(embed_router)

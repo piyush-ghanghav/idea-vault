@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from lib.groq_client import client
 import json
+from lib.embed_model import embed_model
 
 router = APIRouter()
 
@@ -20,6 +21,7 @@ class EnrichmentResponse(BaseModel):
     estimatedHours: int
     nextSteps: list
     domainMeta: dict
+    embedding: list[float]
 
 DOMAIN_PROMPTS = {
     "DEV": "This is a software/development idea. Focus on technical feasibility, tech stack suggestions, and implementation phases.",
@@ -80,7 +82,12 @@ Return ONLY valid JSON with this exact structure, no markdown, no backticks, no 
         raw = raw.strip()
 
         parsed = json.loads(raw)
-        return EnrichmentResponse(ideaId=req.ideaId, **parsed)
+
+        text_to_embed = f"{req.title}\n{req.rawDump}"
+        vectors = list(embed_model.embed([text_to_embed[:2000]]))
+        embedding = vectors[0].tolist()
+
+        return EnrichmentResponse(ideaId=req.ideaId, embedding=embedding, **parsed)
 
     except json.JSONDecodeError as e:
         raise HTTPException(status_code=422, detail=f"AI returned invalid JSON: {str(e)}")
