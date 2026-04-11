@@ -90,13 +90,20 @@ export default function DashboardPage() {
             <h1 className="text-xl font-bold text-gray-900">IdeaVault</h1>
             <p className="text-xs text-gray-400 mt-0.5">Your personal clarity OS</p>
           </div>
-          
-            <Link
-              href="/focus"
-              className="text-xs text-blue-600 hover:text-blue-700 font-medium border border-blue-200 px-3 py-1 rounded-full"
-            >
-              Weekly Focus →
-            </Link>
+
+          <Link
+            href="/focus"
+            className="text-xs text-blue-600 hover:text-blue-700 font-medium border border-blue-200 px-3 py-1 rounded-full"
+          >
+            Weekly Focus →
+          </Link>
+
+          <Link
+            href="/goals"
+            className="text-xs text-blue-600 hover:text-blue-700 font-medium border border-blue-200 px-3 py-1 rounded-full"
+          >
+            Learning Goals →
+          </Link>
           <UserButton />
         </div>
       </div>

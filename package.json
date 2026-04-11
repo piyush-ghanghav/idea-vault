@@ -5,6 +5,7 @@
   "scripts": {
     "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter api dev",
+    "worker": "pnpm --filter api worker",
     "dev": "pnpm --parallel --filter web --filter api dev"
   },
   "packageManager": "pnpm@10.30.1",

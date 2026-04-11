@@ -78,5 +78,33 @@ export function useApi() {
                     headers: { Authorization: `Bearer ${token}` },
                 }).then(res => res.data)
             ),
+        
+        getGoals: () =>
+            authRequest(token =>
+                apiClient.get('/api/goals', {
+                    headers: { Authorization: `Bearer ${token}` },
+                }).then(res => res.data)
+            ),
+
+        createGoal: (data: { title: string; why?: string; estimatedHours?: number }) =>
+            authRequest(token =>
+                apiClient.post('/api/goals', data, {
+                    headers: { Authorization: `Bearer ${token}` },
+                }).then(res => res.data)
+            ),
+
+        reviewGoal: (id: string, quality: number) =>
+            authRequest(token =>
+                apiClient.post(`/api/goals/${id}/review`, { quality }, {
+                    headers: { Authorization: `Bearer ${token}` },
+                }).then(res => res.data)
+            ),
+
+        deleteGoal: (id: string) =>
+            authRequest(token =>
+                apiClient.delete(`/api/goals/${id}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                }).then(res => res.data)
+            ),
     }
 }

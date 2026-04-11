@@ -90,9 +90,11 @@ model LearningGoal {
   why            String?    @db.Text
   estimatedHours Int?
   status         GoalStatus @default(QUEUED)
-  nextReviewAt   DateTime?
+  nextReviewAt   DateTime
   interval       Int        @default(1)
   easeFactor     Float      @default(2.5)
+  repetitions    Int        @default(0)
+  lastReviewedAt DateTime?
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 

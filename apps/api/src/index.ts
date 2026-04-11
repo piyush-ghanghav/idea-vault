@@ -8,6 +8,7 @@ import { createServer } from 'http'
 import { Server } from 'socket.io'
 import { subscriber } from './lib/cache'
 import { focusRoutes } from './routes/focus'
+import { goalsRoutes } from './routes/goals'
 import { setupBullBoard } from './queue/board'
 
 const isDev = process.env.NODE_ENV !== 'production'
@@ -49,7 +50,7 @@ server.register(helmet)
 server.register(webhookRoutes, { prefix: '/api' })
 server.register(ideasRoutes, { prefix: '/api' })
 server.register(focusRoutes, { prefix: '/api' })
-
+server.register(goalsRoutes, { prefix: '/api' })
 const bullBoardAdapter = setupBullBoard()
 server.register(bullBoardAdapter.registerPlugin(), { prefix: '/admin/queues' })
 
