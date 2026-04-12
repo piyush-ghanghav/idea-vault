@@ -98,4 +98,92 @@ export async function ideasRoutes(fastify: FastifyInstance) {
     await cache.invalidateIdeas(request.userId)
     return reply.status(204).send()
   })
+
+  fastify.get('/ideas/:id/similar', { preHandler: authenticate }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+
+    const idea = await prisma.idea.findFirst({
+      where: { id, userId: request.userId }
+    })
+    if (!idea) return reply.status(404).send({ error: 'Idea not found' })
+
+    const embeddingCheck = await prisma.$queryRaw<{ has_embedding: boolean }[]>`
+      SELECT (embedding IS NOT NULL) AS has_embedding FROM "Idea" WHERE id = ${id}
+    `
+    if (!embeddingCheck[0]?.has_embedding) {
+      return reply.send({ similar: [] })
+    }
+
+    const similar = await prisma.$queryRaw<{
+      id: string
+      title: string
+      domain: string
+      createdAt: Date
+      similarity: number
+    }[]>`
+      SELECT
+        i.id,
+        i.title,
+        i.domain,
+        i."createdAt",
+        1 - (i.embedding <=> (
+          SELECT embedding FROM "Idea" WHERE id = ${id}
+        )) AS similarity
+      FROM "Idea" i
+      WHERE
+        i."userId" = ${request.userId}
+        AND i.id != ${id}
+        AND i.embedding IS NOT NULL
+        AND 1 - (i.embedding <=> (
+          SELECT embedding FROM "Idea" WHERE id = ${id}
+        )) > 0.78
+      ORDER BY similarity DESC
+      LIMIT 3
+    `
+
+    return reply.send({ similar })
+  })
+
+  fastify.post('/ideas/search', { preHandler: authenticate }, async (request, reply) => {
+    const { query } = request.body as { query: string }
+    if (!query?.trim()) return reply.status(400).send({ error: 'query is required' })
+
+    const embedRes = await fetch(
+      `${process.env.AI_WORKER_URL ?? 'http://localhost:8000'}/embed`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: query }),
+        signal: AbortSignal.timeout(10000),
+      }
+    )
+    if (!embedRes.ok) return reply.status(500).send({ error: 'Embedding failed' })
+
+    const { embedding } = await embedRes.json() as { embedding: number[] }
+    const vectorLiteral = `[${embedding.join(',')}]`
+
+    const results = await prisma.$queryRaw<{
+      id: string
+      title: string
+      domain: string
+      createdAt: Date
+      similarity: number
+    }[]>`
+      SELECT
+        i.id,
+        i.title,
+        i.domain,
+        i."createdAt",
+        1 - (i.embedding <=> ${vectorLiteral}::vector) AS similarity
+      FROM "Idea" i
+      WHERE
+        i."userId" = ${request.userId}
+        AND i.embedding IS NOT NULL
+        AND 1 - (i.embedding <=> ${vectorLiteral}::vector) > 0.65
+      ORDER BY similarity DESC
+      LIMIT 10
+    `
+
+    return reply.send({ results })
+  })
 }
