@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from lib.groq_client import client
-import json
+from lib.ai_service import generate_focus_with_ai
 
 router = APIRouter()
+
 
 class FocusRequest(BaseModel):
     availableHours: int
@@ -12,10 +12,12 @@ class FocusRequest(BaseModel):
     ideas: list
     goals: list
 
+
 class FocusResponse(BaseModel):
     focus: str
     rationale: str
     firstAction: str
+
 
 @router.post("/focus", response_model=FocusResponse)
 def generate_focus(req: FocusRequest):
@@ -52,24 +54,10 @@ Return ONLY valid JSON, no markdown:
 }}"""
 
     try:
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=400,
-        )
-
-        raw = response.choices[0].message.content.strip()
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        raw = raw.strip()
-
-        parsed = json.loads(raw)
+        parsed = generate_focus_with_ai(prompt)
         return FocusResponse(**parsed)
 
-    except json.JSONDecodeError as e:
+    except ValueError as e:
         raise HTTPException(status_code=422, detail=f"AI returned invalid JSON: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Focus generation failed: {str(e)}")

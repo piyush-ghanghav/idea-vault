@@ -1,16 +1,18 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from lib.groq_client import client
-import json
 from lib.embed_model import embed_model
+from lib.ai_service import enrich_with_ai
+from utils.sanitization import sanitize_for_prompt
 
 router = APIRouter()
+
 
 class EnrichmentRequest(BaseModel):
     ideaId: str
     title: str
     rawDump: str
     domain: str
+
 
 class EnrichmentResponse(BaseModel):
     ideaId: str
@@ -23,73 +25,26 @@ class EnrichmentResponse(BaseModel):
     domainMeta: dict
     embedding: list[float]
 
-DOMAIN_PROMPTS = {
-    "DEV": "This is a software/development idea. Focus on technical feasibility, tech stack suggestions, and implementation phases.",
-    "BUSINESS": "This is a business idea. Focus on market opportunity, target users, revenue model, and go-to-market.",
-    "CREATIVE": "This is a creative idea. Focus on medium, audience, style, and production steps.",
-    "HEALTH": "This is a health/fitness idea. Focus on habit formation, measurable outcomes, and safety considerations.",
-    "TRAVEL": "This is a travel idea. Focus on logistics, budget estimation, best timing, and must-do experiences.",
-    "LEARNING": "This is a learning goal. Focus on resources, learning path, time commitment, and milestones.",
-    "LIFE": "This is a personal life idea. Focus on impact, effort required, and actionable first steps.",
-}
 
 @router.post("/enrich", response_model=EnrichmentResponse)
 def enrich_idea(req: EnrichmentRequest):
-    domain_context = DOMAIN_PROMPTS.get(req.domain, "")
-
-    prompt = f"""You are an expert idea analyst. Analyze this idea and return a structured JSON response.
-
-Domain context: {domain_context}
-
-Idea Title: {req.title}
-Raw Idea Dump: {req.rawDump}
-
-Return ONLY valid JSON with this exact structure, no markdown, no backticks, no extra text:
-{{
-  "category": "one specific category label",
-  "summary": "2-3 sentence clear summary of what this idea actually is",
-  "viabilityNote": "honest 2-3 sentence assessment of feasibility and key challenges",
-  "phases": [
-    {{"phase": "MVP", "description": "what the minimum version looks like", "duration": "estimated time"}},
-    {{"phase": "V1", "description": "first full version", "duration": "estimated time"}},
-    {{"phase": "V2", "description": "mature version", "duration": "estimated time"}}
-  ],
-  "estimatedHours": 40,
-  "nextSteps": [
-    "First concrete action to take",
-    "Second concrete action",
-    "Third concrete action"
-  ],
-  "domainMeta": {{
-    "key_insight": "one important domain-specific insight about this idea"
-  }}
-}}"""
-
     try:
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=1000,
-        )
+        clean_title = sanitize_for_prompt(req.title)
+        clean_dump = sanitize_for_prompt(req.rawDump)
 
-        raw = response.choices[0].message.content.strip()
-
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        raw = raw.strip()
-
-        parsed = json.loads(raw)
+        parsed = enrich_with_ai(clean_title, clean_dump, req.domain)
 
         text_to_embed = f"{req.title}\n{req.rawDump}"
         vectors = list(embed_model.embed([text_to_embed[:2000]]))
         embedding = vectors[0].tolist()
 
-        return EnrichmentResponse(ideaId=req.ideaId, embedding=embedding, **parsed)
+        return EnrichmentResponse(
+            ideaId=req.ideaId,
+            embedding=embedding,
+            **parsed
+        )
 
-    except json.JSONDecodeError as e:
+    except ValueError as e:
         raise HTTPException(status_code=422, detail=f"AI returned invalid JSON: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Enrichment failed: {str(e)}")
