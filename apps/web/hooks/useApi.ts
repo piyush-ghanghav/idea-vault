@@ -78,7 +78,7 @@ export function useApi() {
                     headers: { Authorization: `Bearer ${token}` },
                 }).then(res => res.data)
             ),
-        
+
         getGoals: () =>
             authRequest(token =>
                 apiClient.get('/api/goals', {
@@ -103,6 +103,13 @@ export function useApi() {
         deleteGoal: (id: string) =>
             authRequest(token =>
                 apiClient.delete(`/api/goals/${id}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                }).then(res => res.data)
+            ),
+
+        getGraph: () =>
+            authRequest(token =>
+                apiClient.get('/api/graph', {
                     headers: { Authorization: `Bearer ${token}` },
                 }).then(res => res.data)
             ),

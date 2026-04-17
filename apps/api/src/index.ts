@@ -10,6 +10,7 @@ import { subscriber } from './lib/cache'
 import { focusRoutes } from './routes/focus'
 import { goalsRoutes } from './routes/goals'
 import { setupBullBoard } from './queue/board'
+import { graphRoutes } from './routes/graph'
 
 const isDev = process.env.NODE_ENV !== 'production'
 
@@ -53,6 +54,7 @@ server.register(focusRoutes, { prefix: '/api' })
 server.register(goalsRoutes, { prefix: '/api' })
 const bullBoardAdapter = setupBullBoard()
 server.register(bullBoardAdapter.registerPlugin(), { prefix: '/admin/queues' })
+server.register(graphRoutes, { prefix: '/api' })
 
 io.on('connection', (socket) => {
   console.log(`[Socket.IO] Client connected: ${socket.id}`)

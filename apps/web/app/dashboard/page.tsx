@@ -104,6 +104,12 @@ export default function DashboardPage() {
           >
             Learning Goals →
           </Link>
+          <Link
+            href="/graph"
+            className="text-xs text-blue-600 hover:text-blue-700 font-medium border border-blue-200 px-3 py-1 rounded-full"
+          >
+            Idea Graph →
+          </Link>
           <UserButton />
         </div>
       </div>
