@@ -6,12 +6,15 @@ import { io, Socket } from "socket.io-client"
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ?? 'http://localhost:3002'
 let socket: Socket | null = null
 
-export function useSocket(onEnrichmentComplete: (data: { ideaId: string, enrichment: any }) => void) {
+interface SocketHandlers {
+    onEnrichmentComplete: (data: { ideaId: string, enrichment: any }) => void
+    onGoalsDue?: (data: { goals: any[] }) => void
+}
+
+export function useSocket(handlers: SocketHandlers) {
     const { userId } = useAuth()
-
-    const callbackRef = useRef(onEnrichmentComplete)
-
-    callbackRef.current = onEnrichmentComplete
+    const handlersRef = useRef(handlers)
+    handlersRef.current = handlers
 
     useEffect(() => {
         if (!userId) return
@@ -37,7 +40,12 @@ export function useSocket(onEnrichmentComplete: (data: { ideaId: string, enrichm
 
         const handleEnrichment = (data: { ideaId: string, enrichment: any }) => {
             console.log(`[Socket] Enrichment received for idea: ${data.ideaId}`)
-            callbackRef.current(data)
+            handlersRef.current.onEnrichmentComplete(data)
+        }
+
+        const handleGoalsDue = (data: { goals: any[] }) => {
+            console.log(`[Socket] Goals due received: ${data.goals.length} goals`)
+            handlersRef.current.onGoalsDue?.(data)
         }
 
         const handleReconnect = () => {
@@ -48,19 +56,21 @@ export function useSocket(onEnrichmentComplete: (data: { ideaId: string, enrichm
         if (socket.connected) {
             socket.emit('join', userId)
         }
+
         socket.onAny((event, ...args) => {
             console.log('[Socket ANY]', event, args)
         })
 
         socket.on('connect', handleConnect)
         socket.on('enrichment:complete', handleEnrichment)
+        socket.on('goals:due', handleGoalsDue)
         socket.on('reconnect', handleReconnect)
 
         return () => {
             socket?.off('connect', handleConnect)
             socket?.off('enrichment:complete', handleEnrichment)
+            socket?.off('goals:due', handleGoalsDue)
             socket?.off('reconnect', handleReconnect)
         }
     }, [userId])
-
 }

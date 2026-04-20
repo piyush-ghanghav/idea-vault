@@ -11,6 +11,7 @@ import { focusRoutes } from './routes/focus'
 import { goalsRoutes } from './routes/goals'
 import { setupBullBoard } from './queue/board'
 import { graphRoutes } from './routes/graph'
+import { scheduleDailyReviewCheck } from './queue/review.worker'
 
 const isDev = process.env.NODE_ENV !== 'production'
 
@@ -77,6 +78,11 @@ subscriber.subscribe('enrichment:complete', (err) => {
     console.log(`[PubSub] Subscribed to enrichment:complete`)
 })
 
+subscriber.subscribe('goals:due', (err) => {
+  if (err) console.error('[PubSub] Subscribe error:', err)
+  else console.log('[PubSub] Subscribed to goals:due')
+})
+
 subscriber.on('message', (channel, message) => {
   if (channel === 'enrichment:complete') {
     const { clerkId, ideaId, enrichment } = JSON.parse(message)
@@ -88,7 +94,14 @@ subscriber.on('message', (channel, message) => {
     })
     console.log(`[PubSub] Emitted enrichment:complete to user ${clerkId} for idea ${ideaId}`)
   }
+
+  if (channel === 'goals:due') {
+    const { clerkId, goals } = JSON.parse(message)
+    console.log(`[PubSub] Received goals:due for user ${clerkId}`)
+    io.to(`user:${clerkId}`).emit('goals:due', { goals })
+  }
 })
+
 
 server.get('/health', async () => {
   return { status: 'ok', timestamp: new Date().toISOString() }
@@ -107,4 +120,5 @@ const start = async () => {
   }
 }
 
+scheduleDailyReviewCheck().catch(console.error)
 start()

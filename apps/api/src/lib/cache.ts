@@ -43,5 +43,12 @@ export const cache = {
         const payload = JSON.stringify({ clerkId, ideaId, enrichment })
         await redis.publish('enrichment:complete', payload)
         console.log(`[PubSub] Published enrichment:complete for idea ${ideaId}`)
-    }
+    },
+
+    // Publish goals due for review event
+    async publishGoalsDue(clerkId: string, goals: any[]) {
+        const payload = JSON.stringify({ clerkId, goals })
+        await redis.publish('goals:due', payload)
+        console.log(`[PubSub] Published goals:due for user ${clerkId} — ${goals.length} goals`)
+    },
 }

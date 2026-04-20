@@ -13,6 +13,7 @@ export default function DashboardPage() {
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [loading, setLoading] = useState(true)
   const [domainFilter, setDomainFilter] = useState<Domain | 'ALL'>('ALL')
+  const [dueGoals, setDueGoals] = useState<any[]>([])
 
   const fetchIdeas = async () => {
     try {
@@ -42,7 +43,13 @@ export default function DashboardPage() {
     ))
   }
 
-  useSocket(handleEnrichmentComplete)
+  useSocket({
+    onEnrichmentComplete: handleEnrichmentComplete,
+    onGoalsDue: (data) => {
+      console.log('[Dashboard] Goals due for review:', data.goals)
+      setDueGoals(data.goals)
+    }
+  })
 
   // Called after idea is created
   const handleCreated = (newIdea?: any) => {
@@ -113,7 +120,33 @@ export default function DashboardPage() {
           <UserButton />
         </div>
       </div>
-
+      {dueGoals.length > 0 && (
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 flex justify-between items-center">
+          <div>
+            <p className="text-sm font-semibold text-blue-800">
+              Your mind has space this week
+            </p>
+            <p className="text-xs text-blue-600 mt-0.5">
+              {dueGoals.length} learning goal{dueGoals.length > 1 ? 's' : ''} due for review —{' '}
+              {dueGoals.map(g => g.title).join(', ')}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/goals"
+              className="text-xs font-medium bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
+            >
+              Review now →
+            </Link>
+            <button
+              onClick={() => setDueGoals([])}
+              className="text-blue-400 hover:text-blue-600 text-xs"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
       <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex gap-2 mb-6 flex-wrap">
           <button
