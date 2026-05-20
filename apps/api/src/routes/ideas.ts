@@ -3,6 +3,26 @@ import { prisma } from '../lib/prisma'
 import { authenticate } from '../plugins/auth'
 import { enrichmentQueue } from '../queue'
 import { cache } from '../lib/cache'
+import {redis} from '../queue'
+
+const RATE_LIMIT = {
+  max: 10,
+  windowSec: 3600,
+}
+
+async function checkRateLimit(userId: string):Promise<{allowed:boolean, remaining:number}> {
+  const key = `ratelimit:enrichment:${userId}`
+  const count = await redis.incr(key)
+
+  if(count === 1){
+    await redis.expire(key, RATE_LIMIT.windowSec)
+  }
+
+  const allowed = count <=RATE_LIMIT.max
+  const remaining = Math.max(0, RATE_LIMIT.max-count)
+
+  return {allowed, remaining}
+}
 
 export async function ideasRoutes(fastify: FastifyInstance) {
 
@@ -45,6 +65,17 @@ export async function ideasRoutes(fastify: FastifyInstance) {
     if (!title || !rawDump || !domain) {
       return reply.status(400).send({ error: 'title, rawDump, and domain are required' })
     }
+
+    const {allowed, remaining} = await checkRateLimit(request.userId)
+
+    if(!allowed){
+      return reply.status(429).send({
+        error: 'Rate limit exceeded',
+        message: 'Maximum 10 AI enrichments per hour',
+        retryAfter: RATE_LIMIT.windowSec
+      })
+    }
+  
     const idea = await prisma.idea.create({
       data: { userId: request.userId, title, rawDump, domain: domain as any }
     })
