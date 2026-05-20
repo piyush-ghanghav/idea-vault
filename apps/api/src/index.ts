@@ -12,6 +12,8 @@ import { goalsRoutes } from './routes/goals'
 import { setupBullBoard } from './queue/board'
 import { graphRoutes } from './routes/graph'
 import { scheduleDailyReviewCheck } from './queue/review.worker'
+import { prisma } from './lib/prisma'
+import { redis } from './queue'
 
 const isDev = process.env.NODE_ENV !== 'production'
 
@@ -102,9 +104,41 @@ subscriber.on('message', (channel, message) => {
   }
 })
 
-
 server.get('/health', async () => {
-  return { status: 'ok', timestamp: new Date().toISOString() }
+  return {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  }
+})
+
+server.get('/ready', async (request, reply) => {
+  const checks = {
+    postgres: false,
+    redis: false,
+  }
+
+  try {
+    await prisma.$queryRaw`SELECT 1`
+    checks.postgres = true
+  } catch (err) {
+    server.log.error('Readiness check: Postgres unreachable')
+  }
+
+  try {
+    await redis.ping()
+    checks.redis = true
+  } catch (err) {
+    server.log.error('Readiness check: Redis unreachable')
+  }
+
+  const isReady = checks.postgres && checks.redis
+
+  return reply.status(isReady ? 200 : 503).send({
+    status: isReady ? 'ready' : 'not ready',
+    checks,
+    timestamp: new Date().toISOString(),
+  })
 })
 
 const start = async () => {
