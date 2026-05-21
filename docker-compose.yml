@@ -19,6 +19,15 @@ services:
     volumes:
       - redis_data:/data
 
+  jaeger:
+    image: jaegertracing/all-in-one:1.56
+    container_name: ideavault-jaeger
+    ports:
+      - "4318:4318"   # OTLP HTTP receiver
+      - "16686:16686" # Jaeger UI
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+
 volumes:
   postgres_data:
   redis_data:

@@ -1,4 +1,5 @@
 // worker: pickup jobs, calls python, writes enrichment to db
+import '../lib/tracing'
 import '../lib/env'
 import { Worker, Job } from "bullmq"
 import { redis } from './index'
@@ -6,6 +7,7 @@ import { prisma } from '../lib/prisma'
 import { Enrichment } from '@idea-vault/types'
 import { EnrichmentSchema } from '../schemas/enrichment'
 import { cache } from '../lib/cache'
+import { context, propagation, trace } from '@opentelemetry/api'
 
 
 interface EnrichmentJobData {
@@ -31,12 +33,17 @@ const worker = new Worker<EnrichmentJobData>(
             return { skipped: true }
         }
 
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+        }
+        propagation.inject(context.active(), headers)
+
         // Call Python AI service
         const aiResponse = await fetch(
             `${process.env.AI_WORKER_URL ?? 'http://localhost:8000'}/enrich`,
             {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({ ideaId, title, rawDump, domain }),
                 signal: AbortSignal.timeout(60000),
             }
@@ -84,7 +91,7 @@ const worker = new Worker<EnrichmentJobData>(
         }
 
 
-        const savedEnrichment = await prisma.enrichment.findUnique({where:{ideaId}})
+        const savedEnrichment = await prisma.enrichment.findUnique({ where: { ideaId } })
 
         await prisma.idea.update({
             where: { id: ideaId },
@@ -93,8 +100,8 @@ const worker = new Worker<EnrichmentJobData>(
 
         await cache.invalidateIdeas(userId)
         console.log(`[Worker] Cache invalidated for user ${userId}`)
-        
-        await cache.publishEnrichmentComplete(clerkId,ideaId,savedEnrichment)
+
+        await cache.publishEnrichmentComplete(clerkId, ideaId, savedEnrichment)
 
         console.log(`[Worker] Enrichment complete for idea ${ideaId}`)
         return { success: true, ideaId }
