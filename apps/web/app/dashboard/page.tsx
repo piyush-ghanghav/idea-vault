@@ -2,18 +2,22 @@
 import { useEffect, useState } from 'react'
 import { UserButton } from '@clerk/nextjs'
 import { useApi } from '@/hooks/useApi'
-import { IdeaCard } from '@/components/IdeaCard'
+import { KanbanBoard } from '@/components/KanbanBoard'
 import { CreateIdeaForm } from '@/components/CreateIdeaForm'
+import { Sidebar } from '@/components/Sidebar'
 import { Idea, Domain, DOMAINS } from '@idea-vault/types'
 import { useSocket } from '@/hooks/useSocket'
-import Link from 'next/dist/client/link'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import Link from 'next/link'
 
 export default function DashboardPage() {
   const api = useApi()
-  const [ideas, setIdeas] = useState<Idea[]>([])
-  const [loading, setLoading] = useState(true)
+  const [ideas, setIdeas]           = useState<Idea[]>([])
+  const [loading, setLoading]       = useState(true)
   const [domainFilter, setDomainFilter] = useState<Domain | 'ALL'>('ALL')
-  const [dueGoals, setDueGoals] = useState<any[]>([])
+  const [dueGoals, setDueGoals]     = useState<any[]>([])
+  const [createOpen, setCreateOpen] = useState(false)
+  const [selectedIdea, setSelectedIdea] = useState<Idea | null>(null)
 
   const fetchIdeas = async () => {
     try {
@@ -33,50 +37,34 @@ export default function DashboardPage() {
     fetchIdeas()
   }, [domainFilter, api.isLoaded, api.isSignedIn])
 
-  // Live enrichment updates via Socket.io
-  const handleEnrichmentComplete = (data: { ideaId: string; enrichment: any }) => {
-    console.log('[Dashboard] Live enrichment update for:', data.ideaId)
-    setIdeas(prev => prev.map(idea =>
-      idea.id === data.ideaId
-        ? { ...idea, status: 'ENRICHED' as any, enrichment: data.enrichment }
-        : idea
-    ))
-  }
-
   useSocket({
-    onEnrichmentComplete: handleEnrichmentComplete,
-    onGoalsDue: (data) => {
-      console.log('[Dashboard] Goals due for review:', data.goals)
-      setDueGoals(data.goals)
-    }
+    onEnrichmentComplete: (data: { ideaId: string; enrichment: any }) => {
+      setIdeas(prev => prev.map(i =>
+        i.id === data.ideaId
+          ? { ...i, status: 'ENRICHED' as any, enrichment: data.enrichment }
+          : i
+      ))
+    },
+    onGoalsDue: (data) => setDueGoals(data.goals),
   })
 
-  // Called after idea is created
   const handleCreated = (newIdea?: any) => {
-    if (newIdea) {
-      setIdeas(prev => [{ ...newIdea, enrichment: null }, ...prev])
-    }
+    if (newIdea) setIdeas(prev => [{ ...newIdea, enrichment: null }, ...prev])
     setTimeout(() => fetchIdeas(), 300)
   }
 
-  // Fallback polling if socket misses event
   const handleIdeaCreated = (ideaId: string) => {
-    [5000, 15000].forEach(delay => {
+    [5000, 15000].forEach(delay =>
       setTimeout(async () => {
         try {
           const idea = await api.getIdea(ideaId)
-          if (idea.enrichment) {
+          if (idea.enrichment)
             setIdeas(prev => prev.map(i =>
-              i.id === ideaId
-                ? { ...i, status: 'ENRICHED' as any, enrichment: idea.enrichment }
-                : i
+              i.id === ideaId ? { ...i, status: 'ENRICHED' as any, enrichment: idea.enrichment } : i
             ))
-          }
-        } catch (err) {
-
-        }
+        } catch {}
       }, delay)
-    })
+    )
   }
 
   const handleDelete = async (id: string) => {
@@ -86,127 +74,174 @@ export default function DashboardPage() {
 
   const handleStatusChange = async (id: string, status: string) => {
     await api.updateIdea(id, { status })
-    setIdeas(prev => prev.map(i => i.id === id ? { ...i, status: status as any } : i))
+    setIdeas(prev => prev.map(i =>
+      i.id === id ? { ...i, status: status as any } : i
+    ))
   }
 
+  const filteredIdeas = domainFilter === 'ALL'
+    ? ideas
+    : ideas.filter(i => i.domain === domainFilter)
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-5xl mx-auto flex justify-between items-center">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">IdeaVault</h1>
-            <p className="text-xs text-gray-400 mt-0.5">Your personal clarity OS</p>
-          </div>
+    <div style={{
+      display: 'flex',
+      minHeight: '100vh',
+      background: 'var(--bg)',
+      alignItems: 'flex-start',
+    }}>
+      <Sidebar />
 
-          <Link
-            href="/focus"
-            className="text-xs text-blue-600 hover:text-blue-700 font-medium border border-blue-200 px-3 py-1 rounded-full"
-          >
-            Weekly Focus →
-          </Link>
+      <main style={{ flex: 1, minWidth: 0, padding: '36px 32px', overflowX: 'hidden' }}>
 
-          <Link
-            href="/goals"
-            className="text-xs text-blue-600 hover:text-blue-700 font-medium border border-blue-200 px-3 py-1 rounded-full"
-          >
-            Learning Goals →
-          </Link>
-          <Link
-            href="/graph"
-            className="text-xs text-blue-600 hover:text-blue-700 font-medium border border-blue-200 px-3 py-1 rounded-full"
-          >
-            Idea Graph →
-          </Link>
-          <UserButton />
-        </div>
-      </div>
-      {dueGoals.length > 0 && (
-        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 flex justify-between items-center">
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
           <div>
-            <p className="text-sm font-semibold text-blue-800">
-              Your mind has space this week
-            </p>
-            <p className="text-xs text-blue-600 mt-0.5">
-              {dueGoals.length} learning goal{dueGoals.length > 1 ? 's' : ''} due for review —{' '}
-              {dueGoals.map(g => g.title).join(', ')}
+            <h1 style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 22, fontWeight: 500,
+              letterSpacing: '-0.4px', color: 'var(--text-1)', marginBottom: 3,
+            }}>
+              Ideas
+            </h1>
+            <p style={{ fontSize: 13, color: 'var(--text-3)' }}>
+              {loading ? '...' : `${ideas.length} idea${ideas.length !== 1 ? 's' : ''} · dump raw, AI enriches`}
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/goals"
-              className="text-xs font-medium bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
-            >
-              Review now →
-            </Link>
-            <button
-              onClick={() => setDueGoals([])}
-              className="text-blue-400 hover:text-blue-600 text-xs"
-            >
-              Dismiss
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <ThemeToggle />
+            <UserButton />
           </div>
         </div>
-      )}
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        <div className="flex gap-2 mb-6 flex-wrap">
-          <button
-            onClick={() => setDomainFilter('ALL')}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${domainFilter === 'ALL'
-              ? 'bg-blue-600 text-white'
-              : 'bg-white border border-gray-200 text-gray-600 hover:border-blue-300'
-              }`}
-          >
-            All
-          </button>
-          {DOMAINS.map(d => (
+
+        {/* Due goals banner */}
+        {dueGoals.length > 0 && (
+          <div style={{
+            background: 'rgba(5,150,105,0.08)',
+            border: '0.5px solid var(--border-2)',
+            borderRadius: 12,
+            padding: '12px 16px',
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 20,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: 'var(--em)', flexShrink: 0,
+                animation: 'pulse 1.5s ease-in-out infinite',
+              }} />
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)' }}>
+                  {dueGoals.length} goal{dueGoals.length > 1 ? 's' : ''} due for review
+                </p>
+                <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
+                  {dueGoals.map(g => g.title).join(', ')}
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Link href="/goals" style={{
+                fontSize: 12, fontWeight: 500,
+                background: 'var(--em)', color: '#fff',
+                padding: '5px 12px', borderRadius: 6,
+                textDecoration: 'none',
+              }}>
+                Review now
+              </Link>
+              <button onClick={() => setDueGoals([])} style={{
+                fontSize: 11, color: 'var(--text-3)',
+                background: 'none', border: 'none', cursor: 'pointer',
+              }}>
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Domain filters */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 20 }}>
+          {(['ALL', ...DOMAINS] as const).map(d => (
             <button
               key={d}
               onClick={() => setDomainFilter(d)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${domainFilter === d
-                ? 'bg-blue-600 text-white'
-                : 'bg-white border border-gray-200 text-gray-600 hover:border-blue-300'
-                }`}
+              style={{
+                padding: '4px 12px', borderRadius: 20, fontSize: 11,
+                fontWeight: domainFilter === d ? 500 : 400,
+                cursor: 'pointer',
+                border: `0.5px solid ${domainFilter === d ? 'var(--em)' : 'var(--border)'}`,
+                background: domainFilter === d ? 'var(--em)' : 'rgba(255,255,255,0.4)',
+                color: domainFilter === d ? '#fff' : 'var(--text-2)',
+                backdropFilter: 'blur(4px)',
+                transition: 'all 0.15s',
+              }}
             >
-              {d}
+              {d === 'ALL' ? 'All' : d.charAt(0) + d.slice(1).toLowerCase()}
             </button>
           ))}
         </div>
 
-        <div className="mb-6">
-          <CreateIdeaForm
-            onCreated={handleCreated}
-            onIdeaCreated={handleIdeaCreated}
-          />
-        </div>
+        {/* Capture trigger */}
+        {!createOpen && (
+          <button
+            onClick={() => setCreateOpen(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              width: '100%', maxWidth: 420,
+              background: 'rgba(255,255,255,0.4)',
+              backdropFilter: 'blur(8px)',
+              border: '0.5px dashed var(--border-2)',
+              borderRadius: 12, padding: '12px 16px',
+              cursor: 'pointer', marginBottom: 24,
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'rgba(209,250,229,0.3)'
+              e.currentTarget.style.borderColor = 'var(--em)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.4)'
+              e.currentTarget.style.borderColor = 'var(--border-2)'
+            }}
+          >
+            <div style={{
+              width: 28, height: 28, borderRadius: 8,
+              background: 'var(--em-light)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 2v10M2 7h10" stroke="var(--em)" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-2)' }}>Capture an idea</p>
+              <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1 }}>Dump whatever's in your head</p>
+            </div>
+          </button>
+        )}
 
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-white border border-gray-200 rounded-xl p-5 animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-3" />
-                <div className="h-3 bg-gray-200 rounded w-full mb-2" />
-                <div className="h-3 bg-gray-200 rounded w-2/3" />
-              </div>
-            ))}
-          </div>
-        ) : ideas.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <p className="text-lg mb-1">No ideas yet</p>
-            <p className="text-sm">Dump your first idea above</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {ideas.map(idea => (
-              <IdeaCard
-                key={idea.id}
-                idea={idea}
-                onDelete={handleDelete}
-                onStatusChange={handleStatusChange}
-              />
-            ))}
+        {createOpen && (
+          <div style={{ marginBottom: 24, maxWidth: 520 }}>
+            <CreateIdeaForm
+              onCreated={(idea) => { handleCreated(idea); setCreateOpen(false) }}
+              onIdeaCreated={handleIdeaCreated}
+              onCancel={() => setCreateOpen(false)}
+            />
           </div>
         )}
-      </div>
+
+        {/* Kanban board */}
+        <KanbanBoard
+          ideas={filteredIdeas}
+          loading={loading}
+          onCardClick={setSelectedIdea}
+          onStatusChange={handleStatusChange}
+          onDelete={handleDelete}
+          onCaptureClick={() => setCreateOpen(true)}
+        />
+      </main>
+
     </div>
   )
 }

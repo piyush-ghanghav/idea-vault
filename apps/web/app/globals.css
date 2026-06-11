@@ -1,26 +1,225 @@
 @import "tailwindcss";
 
+/* ─── Light mode tokens ─────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg:        #F8F9FA;
+  --surface:   #FFFFFF;
+  --surface-2: #F1F3F5;
+  --border:    #E9ECEF;
+  --border-2:  #CED4DA;
+
+  --text-1: #0C0C0F;
+  --text-2: #495057;
+  --text-3: #868E96;
+
+  /* Emerald accent */
+  --em:        #059669;
+  --em-light:  #D1FAE5;
+  --em-text:   #065F46;
+
+  /* Domain accents — light */
+  --dom-dev-accent:      #4F46E5;
+  --dom-dev-bg:          #EEF2FF;
+  --dom-dev-text:        #3730A3;
+
+  --dom-design-accent:   #059669;
+  --dom-design-bg:       #D1FAE5;
+  --dom-design-text:     #065F46;
+
+  --dom-business-accent: #D97706;
+  --dom-business-bg:     #FEF3C7;
+  --dom-business-text:   #92400E;
+
+  --dom-personal-accent: #DB2777;
+  --dom-personal-bg:     #FCE7F3;
+  --dom-personal-text:   #9D174D;
+
+  --dom-research-accent: #B45309;
+  --dom-research-bg:     #FEF3C7;
+  --dom-research-text:   #92400E;
+
+  --dom-creative-accent: #7C3AED;
+  --dom-creative-bg:     #F5F3FF;
+  --dom-creative-text:   #5B21B6;
+
+  --dom-health-accent:   #0F766E;
+  --dom-health-bg:       #CCFBF1;
+  --dom-health-text:     #134E4A;
+
+  --dom-travel-accent:   #0369A1;
+  --dom-travel-bg:       #E0F2FE;
+  --dom-travel-text:     #0C4A6E;
+
+  --dom-learning-accent: #C2410C;
+  --dom-learning-bg:     #FFF7ED;
+  --dom-learning-text:   #7C2D12;
+
+  --dom-life-accent:     #6D28D9;
+  --dom-life-bg:         #EDE9FE;
+  --dom-life-text:       #4C1D95;
+
+  /* Status */
+  --status-active-bg:    #D1FAE5;
+  --status-active-text:  #065F46;
+  --status-pending-bg:   #F1F3F5;
+  --status-pending-text: #495057;
+  --status-parked-bg:    #FEF3C7;
+  --status-parked-text:  #92400E;
+  --status-archived-bg:  #F1F3F5;
+  --status-archived-text:#868E96;
+
+  --scroll-thumb: rgba(0,0,0,0.12);
+  --scroll-thumb-hover: rgba(0,0,0,0.22);
+
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* Typography */
+  --font-display: 'Syne', -apple-system, sans-serif;
+  --font-body:    'DM Sans', -apple-system, sans-serif;
+  --font-mono:    'JetBrains Mono', monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ─── Dark mode tokens ──────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg:        #0C0C0F;
+  --surface:   #141417;
+  --surface-2: #1C1C21;
+  --border:    #27272D;
+  --border-2:  #3A3A42;
+
+  --text-1: #F1F3F5;
+  --text-2: #ADB5BD;
+  --text-3: #6C757D;
+
+  --em:       #34D399;
+  --em-light: #064E3B;
+  --em-text:  #34D399;
+
+  /* Domain accents — dark (brighter, desaturated bg) */
+  --dom-dev-accent:      #818CF8;
+  --dom-dev-bg:          #1E1B4B;
+  --dom-dev-text:        #A5B4FC;
+
+  --dom-design-accent:   #34D399;
+  --dom-design-bg:       #064E3B;
+  --dom-design-text:     #6EE7B7;
+
+  --dom-business-accent: #FCD34D;
+  --dom-business-bg:     #451A03;
+  --dom-business-text:   #FDE68A;
+
+  --dom-personal-accent: #F9A8D4;
+  --dom-personal-bg:     #500724;
+  --dom-personal-text:   #FBCFE8;
+
+  --dom-research-accent: #FCD34D;
+  --dom-research-bg:     #451A03;
+  --dom-research-text:   #FDE68A;
+
+  --dom-creative-accent: #C4B5FD;
+  --dom-creative-bg:     #2E1065;
+  --dom-creative-text:   #DDD6FE;
+
+  --dom-health-accent:   #2DD4BF;
+  --dom-health-bg:       #042F2E;
+  --dom-health-text:     #99F6E4;
+
+  --dom-travel-accent:   #38BDF8;
+  --dom-travel-bg:       #082F49;
+  --dom-travel-text:     #7DD3FC;
+
+  --dom-learning-accent: #FB923C;
+  --dom-learning-bg:     #431407;
+  --dom-learning-text:   #FDBA74;
+
+  --dom-life-accent:     #A78BFA;
+  --dom-life-bg:         #2E1065;
+  --dom-life-text:       #C4B5FD;
+
+  --status-active-bg:    #064E3B;
+  --status-active-text:  #34D399;
+  --status-pending-bg:   #1C1C21;
+  --status-pending-text: #6C757D;
+  --status-parked-bg:    #451A03;
+  --status-parked-text:  #FDE68A;
+  --status-archived-bg:  #1C1C21;
+  --status-archived-text:#6C757D;
+
+  --scroll-thumb: rgba(255,255,255,0.12);
+  --scroll-thumb-hover: rgba(255,255,255,0.22);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* ─── Base styles ───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background:  var(--bg);
+  color:       var(--text-1);
+  font-family: var(--font-body);
+  font-size:   0.875rem;
+  line-height: 1.6;
+  transition:  background 0.2s, color 0.2s;
+}
+
+::selection { background: var(--em-light); color: var(--em-text); }
+
+:focus-visible {
+  outline:        2px solid var(--em);
+  outline-offset: 2px;
+  border-radius:  var(--radius-sm);
+}
+
+/* ─── Typography ────────────────────────────────────────────── */
+.font-display { font-family: var(--font-display); }
+.font-mono    { font-family: var(--font-mono); }
+
+/* ─── Animations ────────────────────────────────────────────── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+@keyframes shimmer {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.skeleton-shimmer { animation: shimmer 1.6s ease-in-out infinite; }
+
+/* ─── Custom themed scrollbar ───────────────────────────── */
+
+.themed-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+.themed-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.themed-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.themed-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background 0.2s ease;
+}
+
+.themed-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+  background-clip: padding-box;
 }

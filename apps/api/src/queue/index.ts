@@ -13,7 +13,8 @@ export const enrichmentQueue = new Queue('idea-enrichment',{
         attempts: 3,
         backoff:{
             type: 'exponential',
-            delay: 2000
+            delay: 2000,
+            jitter: 0.5,
         },
         removeOnComplete: 100,
         removeOnFail: 500,
